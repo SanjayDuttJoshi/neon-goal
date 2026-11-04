@@ -1,4 +1,4 @@
-:HL["/neon-goal/v2/_next/static/chunks/1kq-i_2cpu50o.css","style"]
+:HL["/neon-goal/v2/_next/static/chunks/0-ozsweyczaum.css","style"]
 2:[["children",{"s":"__PAGE__","h":160}]]
 1:[["children",{"s":"/_not-found","h":96,"c":"$Q2"}]]
-0:{"b":"fvwgaZnmDj0oIAv2i2c43","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
+0:{"b":"PiIB5wiDA7Z-UAnirG9UQ","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
