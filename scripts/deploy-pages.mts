@@ -41,4 +41,5 @@ try {
   rmSync(dir, { recursive: true, force: true });
   run("npm", ["run", "build"]);
 }
-console.log(`\nDeployed. Live in a minute at https://<user>.github.io${BASE_PATH}/`);
+const owner = remote.match(/github\.com[/:]([^/]+)\//)?.[1]?.toLowerCase() ?? "<user>";
+console.log(`\nDeployed. Live in about a minute at https://${owner}.github.io${BASE_PATH}/`);

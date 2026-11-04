@@ -2,6 +2,8 @@
 
 Neon soccer where **you are the wall**. You can't kick the ball: wherever you run you leave a glowing trail, and the ball bounces off trails. Draw ramps, walls and traps to score.
 
+**Play:** https://sanjayduttjoshi.github.io/neon-goal/
+
 - Modes: **Solo 1v1**, **Duo 2v2**, **Squad 4v4**, **Chaar Kone** (4 goals, last one standing)
 - Rooms with a 5-letter code / invite link / WhatsApp share, spectators (bench), kick, rematch
 - Bots fill empty slots (Aasaan / Normal / Khatarnak) and an offline **Practice** mode
@@ -44,14 +46,17 @@ npm run playtest   # needs `npm run preview` running: an autopilot plays full ma
 
 `?debug=1` exposes a small screen-space probe (`window.__neonProbe`) that the playtest autopilot reads; it does nothing otherwise.
 
-## Deploy free (Cloudflare Pages example)
+## Deploy (free, GitHub Pages)
 
-1. Push this folder to a GitHub repo.
-2. Cloudflare Pages → Create project → connect the repo.
-3. Build command: `npm run build` · Output directory: `out`.
-4. Share the `*.pages.dev` link. Done.
+```bash
+npm run deploy     # type-check + unit tests, build for /neon-goal, push to the gh-pages branch
+```
 
-GitHub Pages and Netlify work the same way, since the site is just the `out/` folder.
+The site updates about a minute later. No GitHub Actions, no paid plan: GitHub Pages serves the `gh-pages` branch of a public repo for free.
+
+Pushes from this folder always go out as the repo's own GitHub account, through the credential helper in `.git/config`. It doesn't matter which `gh` account is active.
+
+Any other static host works too (Cloudflare Pages, Netlify): build with `npm run build` and upload `out/`.
 
 ## Code map
 
