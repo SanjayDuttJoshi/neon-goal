@@ -13,7 +13,10 @@ import {
   TRAIL_MIN_BOUNCE_SPEED,
 } from "@/game/constants";
 import { pushEvent } from "@/game/events";
+import { collideBallWithBars } from "@/game/moving-walls";
 import { bounceVelocity, circleSegmentHit, wallContact, type SegmentHit } from "@/game/physics";
+import { isOnField } from "@/game/players";
+import { burnsPlayer, knockOut, onTrailBounce } from "@/game/red-ball";
 import { forEachActiveSegment } from "@/game/trails";
 import { raySegmentDistance } from "@/game/vector";
 
@@ -79,6 +82,7 @@ const handleTrailHit = (state: SimState, owner: PlayerState, hit: SegmentHit, po
   ball.vx = (rx / speed) * newSpeed;
   ball.vy = (ry / speed) * newSpeed;
   registerTouch(state, owner);
+  onTrailBounce(state);
   owner.stats.bounces += 1;
   if (power) owner.stats.powerShots += 1;
   pushEvent(state, {
@@ -113,7 +117,7 @@ const collideBallWithWalls = (state: SimState, walls: WallDef[]): void => {
 const collideBallWithTrails = (state: SimState): void => {
   const { ball } = state;
   for (const owner of state.players) {
-    if (owner.eliminated) continue;
+    if (!isOnField(owner)) continue;
     forEachActiveSegment(owner, state.time, ({ seg, power }) => {
       const hit = circleSegmentHit(ball.x, ball.y, BALL_RADIUS, seg, TRAIL_HALF_WIDTH, ball.vx, ball.vy);
       if (!hit) return false;
@@ -127,11 +131,15 @@ const collideBallWithBodies = (state: SimState): void => {
   const { ball } = state;
   const minDist = BALL_RADIUS + PLAYER_RADIUS;
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (!isOnField(player)) continue;
     const dx = ball.x - player.x;
     const dy = ball.y - player.y;
     const dist = Math.hypot(dx, dy);
     if (dist >= minDist) continue;
+    if (burnsPlayer(state, player)) {
+      knockOut(state, player);
+      continue;
+    }
     let nx = dist > 1e-6 ? dx / dist : -player.faceX;
     let ny = dist > 1e-6 ? dy / dist : -player.faceY;
     if (nx === 0 && ny === 0) {
@@ -158,7 +166,7 @@ const unpinPlayers = (state: SimState): void => {
   const { ball } = state;
   const minDist = BALL_RADIUS + PLAYER_RADIUS;
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (!isOnField(player)) continue;
     const dx = player.x - ball.x;
     const dy = player.y - ball.y;
     const dist = Math.hypot(dx, dy);
@@ -181,6 +189,7 @@ export const stepBallSubstep = (state: SimState, dt: number, walls: WallDef[]): 
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
   collideBallWithTrails(state);
+  collideBallWithBars(state);
   collideBallWithBodies(state);
   collideBallWithWalls(state, walls);
   unpinPlayers(state);

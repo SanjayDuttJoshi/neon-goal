@@ -6,7 +6,7 @@ const GRID_STEP = 50;
 const WALL_COLOR = "#7dd3fc";
 const CENTER_RADIUS = 90;
 
-const fieldPath = (ctx: CanvasRenderingContext2D, arena: ArenaDef): void => {
+export const fieldPath = (ctx: CanvasRenderingContext2D, arena: ArenaDef): void => {
   const { width: w, height: h } = arena;
   const corner = arena.walls.find((wall) => wall.ax === 0 && wall.bx !== 0 && wall.by === 0);
   const c = corner ? corner.bx : 0;

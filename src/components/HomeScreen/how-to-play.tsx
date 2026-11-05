@@ -9,7 +9,9 @@ const STEPS = [
   { icon: "🏃", title: "Chalo, line banao", text: "Tum jahan chalte ho, peeche neon line banti hai jo ~1.5 sec rehti hai." },
   { icon: "⚽", title: "Ball line se bounce", text: "Ball kisi bhi line se takra ke tez bounce hoti hai. Tirchhi line = ramp, seedhi line = deewar." },
   { icon: "⚡", title: "Dash = power shot", text: "Dash se lambi chamakti line banti hai — ball goli ki tarah udti hai. Cooldown 2 sec." },
-  { icon: "🧊", title: "Dushman ko slow karo", text: "Opponent tumhari line cross kare toh thodi der slow ho jaata hai." },
+  { icon: "🐌", title: "Dushman ko slow karo", text: "Opponent tumhari line cross kare toh thodi der slow ho jaata hai." },
+  { icon: "🔥", title: "Red ball", text: "Ball line se kuch baar takraaye toh LAAL ho jaati hai. Ab sirf line se khelo — body ko lagi toh tum OUT (6 ya 12 sec). Wapas aane pe 2 sec shield. Red ball se goal = 2 point." },
+  { icon: "⚡", title: "Arena events", text: "Beech beech mein: 🌑 Blackout, 🧱 Moving walls, 🧊 Ice floor, ⭐ Golden time (har goal double). 3 sec pehle warning aati hai." },
 ];
 
 export const HowToPlay = ({ open, onClose }: HowToPlayProps) => (

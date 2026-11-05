@@ -29,6 +29,8 @@ export class LocalPredictor {
   private active = false;
   errorX = 0;
   errorY = 0;
+  /** Grip of the floor; below 1 while the ice event is on. */
+  traction = 1;
 
   constructor(arena: ArenaDef, entry: RosterEntry) {
     this.arena = arena;
@@ -111,7 +113,7 @@ export class LocalPredictor {
     tickPlayerTimers(p, SIM_DT);
     const move = normalizeInput(input);
     tryStartDash(p, input, move);
-    steerPlayer(p, move, SIM_DT, 1);
+    steerPlayer(p, move, SIM_DT, 1, this.traction);
     p.x += p.vx * SIM_DT;
     p.y += p.vy * SIM_DT;
     collidePlayerWithWalls(p, this.arena);

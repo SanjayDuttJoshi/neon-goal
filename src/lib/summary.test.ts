@@ -8,7 +8,7 @@ const player = (id: string, team: number, stats: Partial<PlayerStats>): SummaryP
   name: id,
   team,
   isBot: false,
-  stats: { goals: 0, ownGoals: 0, saves: 0, bounces: 0, powerShots: 0, ...stats },
+  stats: { goals: 0, ownGoals: 0, saves: 0, bounces: 0, powerShots: 0, knockouts: 0, ...stats },
 });
 
 const summary = (players: SummaryPlayer[]): MatchSummary => ({ winner: 0, scores: [3, 2], lives: [], mode: GameMode.Duo, players });

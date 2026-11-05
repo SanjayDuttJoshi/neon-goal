@@ -99,6 +99,28 @@ export const synthesize = (ctx: AudioContext, out: AudioNode, noise: AudioBuffer
     case SoundKind.Click:
       tone(ctx, out, { type: "triangle", from: 1400, to: 900, duration: 0.05, gain: 0.08 });
       break;
+    case SoundKind.Siren:
+      [0, 0.26].forEach((delay) => {
+        tone(ctx, out, { type: "sawtooth", from: 620, to: 980, duration: 0.13, gain: 0.07, delay });
+        tone(ctx, out, { type: "sawtooth", from: 980, to: 620, duration: 0.13, gain: 0.07, delay: delay + 0.13 });
+      });
+      break;
+    case SoundKind.Burn:
+      noiseBurst(ctx, out, noise, { filter: "lowpass", from: 2600, to: 90, duration: 0.65, gain: 0.55 });
+      tone(ctx, out, { type: "sawtooth", from: 320, to: 50, duration: 0.5, gain: 0.14 });
+      break;
+    case SoundKind.Respawn:
+      tone(ctx, out, { type: "sine", from: 380, to: 1250, duration: 0.28, gain: 0.12 });
+      break;
+    case SoundKind.Alarm:
+      [0, 0.18, 0.36].forEach((delay) => tone(ctx, out, { type: "square", from: 760, to: 760, duration: 0.11, gain: 0.07, delay }));
+      break;
+    case SoundKind.Cool:
+      noiseBurst(ctx, out, noise, { filter: "highpass", from: 6500, to: 1800, duration: 0.4, gain: 0.16 });
+      break;
+    case SoundKind.Chime:
+      GOAL_CHORD.forEach((freq, i) => tone(ctx, out, { type: "triangle", from: freq * 2, to: freq * 2, duration: 0.25, gain: 0.06, delay: i * 0.06 }));
+      break;
     default:
       break;
   }

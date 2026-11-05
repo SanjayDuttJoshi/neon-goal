@@ -11,4 +11,10 @@ export enum SoundKind {
   Go = "go",
   Whistle = "whistle",
   Click = "click",
+  Siren = "siren",
+  Burn = "burn",
+  Respawn = "respawn",
+  Alarm = "alarm",
+  Cool = "cool",
+  Chime = "chime",
 }

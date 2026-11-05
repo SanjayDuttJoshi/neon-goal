@@ -1,4 +1,4 @@
-import { BotDifficulty, GameMode, MatchPhase, type GameEvent, type RosterEntry, type SimState, type TrailPoint } from "@/types/game";
+import { BotDifficulty, GameMode, MatchPhase, RedBallMode, type GameEvent, type MatchConfig, type RosterEntry, type SimState, type TrailPoint } from "@/types/game";
 import { MODE_INFO, SIM_DT } from "@/game/constants";
 import { createMatch } from "@/game/match";
 import { stepSim, type InputMap } from "@/game/simulation";
@@ -14,13 +14,17 @@ export const makeRoster = (mode: GameMode, bots: boolean): RosterEntry[] => {
   return roster;
 };
 
+/** V1 rules: no red ball, no arena events. Tests opt in to the V2 twists explicitly. */
+export const CLASSIC_RULES: Pick<MatchConfig, "redBall" | "arenaEvents"> = { redBall: RedBallMode.Off, arenaEvents: false };
+
 export const makeMatch = (
   mode = GameMode.Solo,
   bots = false,
   difficulty = BotDifficulty.Normal,
   durationSec = 180,
   seed = 7,
-): SimState => createMatch({ mode, durationSec, botDifficulty: difficulty }, makeRoster(mode, bots), seed);
+  rules: Pick<MatchConfig, "redBall" | "arenaEvents"> = CLASSIC_RULES,
+): SimState => createMatch({ mode, durationSec, botDifficulty: difficulty, ...rules }, makeRoster(mode, bots), seed);
 
 /** Runs the countdown so the match is in the playing phase. */
 export const skipCountdown = (state: SimState): void => {

@@ -85,10 +85,15 @@ test("host settings show up live for guests", async ({ browser }) => {
   const code = await createRoom(host, "Host");
   await joinRoom(guest, code, "Guest");
   await host.getByRole("button", { name: /Squad 4v4/ }).click();
-  await host.getByRole("radio", { name: "5 min" }).click();
+  await host.getByRole("radio", { name: "10 min" }).click();
+  await host.getByRole("radio", { name: "Red 6s" }).click();
+  await host.getByRole("radio", { name: "Events OFF" }).click();
   await expect(guest.getByRole("button", { name: /Squad 4v4/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(guest.getByRole("radio", { name: "5 min" })).toHaveAttribute("aria-checked", "true");
+  await expect(guest.getByRole("radio", { name: "10 min" })).toHaveAttribute("aria-checked", "true");
+  await expect(guest.getByRole("radio", { name: "Red 6s" })).toHaveAttribute("aria-checked", "true");
+  await expect(guest.getByRole("radio", { name: "Events OFF" })).toHaveAttribute("aria-checked", "true");
   await expect(guest.getByRole("button", { name: /Squad 4v4/ })).toBeDisabled();
+  await expect(guest.getByRole("radio", { name: "Red 12s" })).toBeDisabled();
   await context.close();
 });
 

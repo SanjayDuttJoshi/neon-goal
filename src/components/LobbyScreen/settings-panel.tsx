@@ -1,7 +1,7 @@
 import type { LobbySettings } from "@/types/net";
 import { ModePicker } from "@/components/Common/mode-picker";
 import { Segmented } from "@/components/Common/segmented";
-import { DIFFICULTY_OPTIONS, DURATION_OPTIONS } from "@/components/Common/difficulty-options";
+import { DIFFICULTY_OPTIONS, DURATION_OPTIONS, EVENT_OPTIONS, RED_BALL_OPTIONS } from "@/components/Common/difficulty-options";
 
 interface SettingsPanelProps {
   settings: LobbySettings;
@@ -25,6 +25,16 @@ export const SettingsPanel = ({ settings, editable, onChange }: SettingsPanelPro
         onChange={(v) => onChange({ botFill: v === "on" })}
       />
       <Segmented label="Bot difficulty" options={DIFFICULTY_OPTIONS} value={settings.botDifficulty} disabled={!editable || !settings.botFill} onChange={(botDifficulty) => onChange({ botDifficulty })} />
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Segmented label="Red Ball" options={RED_BALL_OPTIONS} value={settings.redBall} disabled={!editable} onChange={(redBall) => onChange({ redBall })} />
+      <Segmented
+        label="Arena events"
+        options={EVENT_OPTIONS}
+        value={settings.arenaEvents ? "on" : "off"}
+        disabled={!editable}
+        onChange={(v) => onChange({ arenaEvents: v === "on" })}
+      />
     </div>
     {!editable && <p className="text-center text-xs uppercase tracking-widest text-slate-500">Sirf host settings badal sakta hai</p>}
   </div>

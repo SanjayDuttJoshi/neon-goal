@@ -1,4 +1,4 @@
-import { BotDifficulty } from "@/types/game";
+import { BotDifficulty, RedBallMode } from "@/types/game";
 
 export const DIFFICULTY_OPTIONS = [
   { value: BotDifficulty.Easy, label: "Aasaan" },
@@ -7,7 +7,18 @@ export const DIFFICULTY_OPTIONS = [
 ];
 
 export const DURATION_OPTIONS = [
-  { value: 120, label: "2 min" },
-  { value: 180, label: "3 min" },
-  { value: 300, label: "5 min" },
+  { value: 360, label: "6 min" },
+  { value: 480, label: "8 min" },
+  { value: 600, label: "10 min" },
+];
+
+export const RED_BALL_OPTIONS = [
+  { value: RedBallMode.Off, label: "Red OFF" },
+  { value: RedBallMode.Short, label: "Red 6s" },
+  { value: RedBallMode.Long, label: "Red 12s" },
+];
+
+export const EVENT_OPTIONS = [
+  { value: "on", label: "Events ON" },
+  { value: "off", label: "Events OFF" },
 ];

@@ -1,7 +1,7 @@
 import { MatchPhase, type GameEvent, type PlayerInput, type RosterEntry, type SimState } from "@/types/game";
 import type { WireSnapshot } from "@/types/net";
 import type { HudState, RenderFrame } from "@/types/render";
-import { DASH_COOLDOWN, SIM_DT, SNAPSHOT_EVERY_TICKS } from "@/game/constants";
+import { DASH_COOLDOWN, HEAT_TO_RED, SIM_DT, SNAPSHOT_EVERY_TICKS } from "@/game/constants";
 import { drainEvents } from "@/game/events";
 import { NEUTRAL_INPUT } from "@/game/players";
 import { stepSim, type InputMap } from "@/game/simulation";
@@ -122,7 +122,10 @@ export class HostEngine {
         y: lerp(this.prevBall.y, state.ball.y, alpha),
         vx: state.ball.vx,
         vy: state.ball.vy,
+        heat: state.ball.heat / HEAT_TO_RED[state.config.mode],
+        redLeft: state.ball.redLeft,
       },
+      arenaEvent: { ...state.arenaEvent },
       players: state.players.map((p) => {
         const prev = this.prevPlayers.get(p.id) ?? p;
         return {
@@ -139,6 +142,8 @@ export class HostEngine {
           isSelf: p.id === this.localPlayerId,
           isBot: lookup.get(p.id)?.isBot ?? false,
           dashReady: 1 - p.dashCooldown / DASH_COOLDOWN,
+          outTime: p.outTime,
+          shielded: p.shieldTime > 0,
         };
       }),
     };
@@ -157,6 +162,9 @@ export class HostEngine {
       lives: [...state.lives],
       selfTeam: self?.team ?? null,
       selfDashReady: self ? 1 - self.dashCooldown / DASH_COOLDOWN : 1,
+      selfOutTime: self?.outTime ?? 0,
+      redLeft: state.ball.redLeft,
+      arenaEvent: { ...state.arenaEvent },
     };
   }
 

@@ -13,7 +13,7 @@ import {
   TRAIL_MIN_BOUNCE_SPEED,
 } from "@/game/constants";
 import { stepSim } from "@/game/simulation";
-import { lineTrail, makeMatch, makeRoster, parkPlayers, runCollect, runTicks, skipCountdown } from "@/game/test-helpers";
+import { CLASSIC_RULES, lineTrail, makeMatch, makeRoster, parkPlayers, runCollect, runTicks, skipCountdown } from "@/game/test-helpers";
 
 const ticksFor = (seconds: number): number => Math.ceil(seconds * SIM_HZ) + 2;
 
@@ -237,7 +237,7 @@ describe("chaar kone (free for all)", () => {
 
   it("closes goals of empty slots from the start", () => {
     const roster = makeRoster(GameMode.FreeForAll, false).filter((entry) => entry.team !== 3);
-    const state = createMatch({ mode: GameMode.FreeForAll, durationSec: 60, botDifficulty: BotDifficulty.Normal }, roster, 1);
+    const state = createMatch({ mode: GameMode.FreeForAll, durationSec: 60, botDifficulty: BotDifficulty.Normal, ...CLASSIC_RULES }, roster, 1);
     expect(state.closedGoals).toEqual([3]);
     expect(state.lives[3]).toBe(0);
   });

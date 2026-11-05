@@ -41,10 +41,30 @@ const play = async (page: Page, pilot: Pilot, tag: string, opts: { seconds: numb
   let goals = 0;
   let lastPhase = "";
   let paused = false;
+  let lastEvent = "";
+  let lastRed = 0;
+  let wasOut = false;
+  const twists = new Map<string, number>();
+  /** V2 moments: each event's warning and live look, the ball turning red, and being knocked out. */
+  const snapTwist = async (name: string, delayMs = 0) => {
+    const count = (twists.get(name) ?? 0) + 1;
+    twists.set(name, count);
+    if (count > 2) return;
+    if (delayMs) await page.waitForTimeout(delayMs);
+    await shot(page, `${tag}-${name}-${count}`);
+  };
   while (Date.now() - start < opts.seconds * 1000) {
     const probe = await readProbe(page);
     await pilot.step(probe);
     const phase = probe?.phase ?? "none";
+    if (probe && probe.arenaEvent !== lastEvent && probe.arenaEvent) {
+      await snapTwist(`event-${probe.arenaEvent.replace(":", "-")}`, probe.arenaEvent.endsWith("active") ? 700 : 0);
+    }
+    if (probe && probe.ballRed > 0 && lastRed === 0) await snapTwist("red-ball", 300);
+    if (probe && probe.selfOut && !wasOut) await snapTwist("knocked-out", 200);
+    lastEvent = probe?.arenaEvent ?? "";
+    lastRed = probe?.ballRed ?? 0;
+    wasOut = probe?.selfOut ?? false;
     if (phase === "goal" && lastPhase !== "goal" && goals < 2) {
       goals += 1;
       const t0 = Date.now();
@@ -53,7 +73,7 @@ const play = async (page: Page, pilot: Pilot, tag: string, opts: { seconds: numb
         await shot(page, `${tag}-goal${goals}-${at}ms`);
       }
     }
-    if (phase === "playing" && Date.now() - lastSnap > 3000) {
+    if (phase === "playing" && Date.now() - lastSnap > 5000) {
       lastSnap = Date.now();
       snaps += 1;
       await shot(page, `${tag}-action-${String(snaps).padStart(2, "0")}`);
@@ -78,7 +98,7 @@ const startPractice = async (page: Page, mode: string) => {
   await page.getByRole("button", { name: "Practice" }).click();
   await page.getByRole("button", { name: new RegExp(MODE_LABELS[mode]) }).click();
   await page.getByRole("radio", { name: "Khatarnak" }).click();
-  await page.getByRole("radio", { name: "2 min" }).click();
+  await page.getByRole("radio", { name: "6 min" }).click();
   await page.getByRole("button", { name: "Bots se khelo" }).click();
 };
 
@@ -169,7 +189,7 @@ const phone = async (browser: Browser) => {
   await shot(page, "phone-home");
   await startPractice(page, "duo");
   await page.getByText("Get ready").waitFor();
-  await play(page, await TouchPilot.create(page), "phone-duo", { seconds: 40 });
+  await play(page, await TouchPilot.create(page), "phone-duo", { seconds: 240 });
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(1500);
   await shot(page, "phone-landscape");
@@ -179,10 +199,10 @@ const phone = async (browser: Browser) => {
 const browser = await chromium.launch({ channel: "chrome" });
 const PARTS: Record<string, () => Promise<void>> = {
   menus: () => menus(browser).then(() => lobby(browser)),
-  solo: () => practice(browser, "solo", 200, { untilSummary: true, pauseAt: 12 }),
-  duo: () => practice(browser, "duo", 45),
-  squad: () => practice(browser, "squad", 50),
-  ffa: () => practice(browser, "ffa", 45),
+  solo: () => practice(browser, "solo", 560, { untilSummary: true, pauseAt: 12 }),
+  duo: () => practice(browser, "duo", 240),
+  squad: () => practice(browser, "squad", 240),
+  ffa: () => practice(browser, "ffa", 240),
   phone: () => phone(browser),
 };
 const chosen = process.argv.slice(3);

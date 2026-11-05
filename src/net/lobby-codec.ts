@@ -1,4 +1,4 @@
-import { BotDifficulty, GameMode, type PlayerStats, type RosterEntry } from "@/types/game";
+import { BotDifficulty, GameMode, RedBallMode, type PlayerStats, type RosterEntry } from "@/types/game";
 import {
   CommandKind,
   LobbyStatus,
@@ -31,7 +31,7 @@ const parseRosterEntry = (value: unknown): RosterEntry | null => {
 
 const parseStats = (value: unknown): PlayerStats | null => {
   if (!isRecord(value)) return null;
-  const { goals, ownGoals, saves, bounces, powerShots } = value;
+  const { goals, ownGoals, saves, bounces, powerShots, knockouts } = value;
   if (![goals, ownGoals, saves, bounces, powerShots].every(isFiniteNumber)) return null;
   return {
     goals: goals as number,
@@ -39,6 +39,7 @@ const parseStats = (value: unknown): PlayerStats | null => {
     saves: saves as number,
     bounces: bounces as number,
     powerShots: powerShots as number,
+    knockouts: isFiniteNumber(knockouts) ? knockouts : 0,
   };
 };
 
@@ -81,6 +82,8 @@ export const parseLobby = (data: unknown): LobbyState | null => {
       durationSec: isFiniteNumber(settings.durationSec) ? settings.durationSec : 0,
       botFill: settings.botFill === true,
       botDifficulty: difficulty,
+      redBall: isEnumValue(Object.values(RedBallMode), settings.redBall) ? settings.redBall : RedBallMode.Off,
+      arenaEvents: settings.arenaEvents === true,
     }),
     members: parsedMembers as LobbyMember[],
     status,

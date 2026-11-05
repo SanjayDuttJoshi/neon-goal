@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BotDifficulty, GameEventKind, GameMode } from "@/types/game";
+import { BotDifficulty, GameEventKind, GameMode, RedBallMode } from "@/types/game";
 import { LobbyStatus, type LobbyState } from "@/types/net";
 import { decodeInput, decodeSnapshot, encodeInput, encodeSnapshot, PROTOCOL_VERSION } from "@/net/protocol";
 import { addMember, applySettings, buildRoster, canStart, createLobby, markDisconnected, moveMember, sanitizeName } from "@/net/lobby";
@@ -11,9 +11,11 @@ import { makeMatch, makeRoster, runTicks, skipCountdown } from "@/game/test-help
 const lobbyWith = (count: number, mode = GameMode.Duo): LobbyState => {
   let lobby = createLobby("ABCDE", { peerId: "p0", clientId: "c0", name: "Host", team: 0, connected: true }, {
     mode,
-    durationSec: 180,
+    durationSec: 360,
     botFill: true,
     botDifficulty: BotDifficulty.Normal,
+    redBall: RedBallMode.Long,
+    arenaEvents: true,
   });
   for (let i = 1; i < count; i += 1) lobby = addMember(lobby, `p${i}`, `c${i}`, `Player ${i}`);
   return lobby;

@@ -61,6 +61,24 @@ export const spawnEffect = (event: GameEvent, particles: ParticleSystem, fx: Eff
       fx.shake = Math.max(fx.shake, 12);
       break;
     }
+    case GameEventKind.BallRed:
+      particles.burst(frame.ball.x, frame.ball.y, "#ef4444", 40, 420, 0.8, "dot");
+      particles.ring(frame.ball.x, frame.ball.y, "#ef4444", 140, 0.6, 6);
+      fx.flash = Math.max(fx.flash, 0.22);
+      fx.flashColor = "#ef4444";
+      break;
+    case GameEventKind.BallCooled:
+      particles.ring(frame.ball.x, frame.ball.y, "#bae6fd", 90, 0.5, 4);
+      break;
+    case GameEventKind.KnockOut:
+      particles.burst(event.x, event.y, "#ef4444", 46, 520, 0.9, "dot");
+      particles.burst(event.x, event.y, "#f97316", 30, 380, 0.7);
+      particles.ring(event.x, event.y, "#ef4444", 110, 0.6, 6);
+      fx.shake = Math.max(fx.shake, 14);
+      break;
+    case GameEventKind.Respawn:
+      particles.ring(event.x, event.y, "#e0f2fe", 70, 0.5, 4);
+      break;
     case GameEventKind.MatchEnd: {
       const cx = frame.arena.width / 2;
       const cy = frame.arena.height / 2;

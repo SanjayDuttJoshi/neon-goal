@@ -2,7 +2,12 @@
 
 Neon soccer where **you are the wall**. You can't kick the ball: wherever you run you leave a glowing trail, and the ball bounces off trails. Draw ramps, walls and traps to score.
 
-**Play:** https://sanjayduttjoshi.github.io/neon-goal/
+**Play:** https://sanjayduttjoshi.github.io/neon-goal/ (pick V2 or V1 Classic)
+
+### New in V2
+- **Red ball:** after a few trail bounces the ball turns red. While it's red, play it only with trails: if it touches your body you're out for 6 or 12 seconds (the host picks), then you return with a 2-second shield. A red-ball goal is worth 2.
+- **Arena events** every 25-35 seconds, each with a 3-second warning: 🌑 Blackout (only trails and the ball glow), 🧱 Moving walls (bars that block the ball), 🧊 Ice floor (players slide), ⭐ Golden time (every goal counts double).
+- Matches last 6, 8 or 10 minutes. Red ball and events can each be switched off in the lobby.
 
 - Modes: **Solo 1v1**, **Duo 2v2**, **Squad 4v4**, **Chaar Kone** (4 goals, last one standing)
 - Rooms with a 5-letter code / invite link / WhatsApp share, spectators (bench), kick, rematch
@@ -49,10 +54,10 @@ npm run playtest   # needs `npm run preview` running: an autopilot plays full ma
 ## Deploy (free, GitHub Pages)
 
 ```bash
-npm run deploy     # type-check + unit tests, build for /neon-goal, push to the gh-pages branch
+npm run deploy     # type-check + unit tests, build for /neon-goal/v<major>, push to the gh-pages branch
 ```
 
-The site updates about a minute later. No GitHub Actions, no paid plan: GitHub Pages serves the `gh-pages` branch of a public repo for free.
+Each major version (from `package.json`) gets its own folder, and older folders stay online: `/neon-goal/v1/` is the frozen V1 and `/neon-goal/` is a picker page. The site updates about a minute later. No GitHub Actions, no paid plan: GitHub Pages serves the `gh-pages` branch of a public repo for free.
 
 Pushes from this folder always go out as the repo's own GitHub account, through the credential helper in `.git/config`. It doesn't matter which `gh` account is active.
 

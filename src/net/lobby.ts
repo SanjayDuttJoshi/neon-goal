@@ -1,4 +1,4 @@
-import { BotDifficulty, GameMode, type MatchConfig, type RosterEntry, type SimState } from "@/types/game";
+import { BotDifficulty, GameMode, RedBallMode, type MatchConfig, type RosterEntry, type SimState } from "@/types/game";
 import { LobbyStatus, type LobbyMember, type LobbySettings, type LobbyState, type MatchSummary } from "@/types/net";
 import { DEFAULT_DURATION_SEC, MATCH_DURATIONS_SEC, MODE_INFO } from "@/game/constants";
 import { PROTOCOL_VERSION } from "@/net/protocol";
@@ -11,6 +11,8 @@ export const DEFAULT_SETTINGS: LobbySettings = {
   durationSec: DEFAULT_DURATION_SEC,
   botFill: true,
   botDifficulty: BotDifficulty.Normal,
+  redBall: RedBallMode.Long,
+  arenaEvents: true,
 };
 
 const BOT_NAMES = ["Robo Raju", "Chintu.exe", "Bot Bunty", "Pappu 2.0", "Golu AI", "Tinku Bot", "Munna MK2", "Babloo X"];
@@ -34,6 +36,8 @@ export const sanitizeSettings = (settings: LobbySettings): LobbySettings => ({
   botDifficulty: Object.values(BotDifficulty).includes(settings.botDifficulty)
     ? settings.botDifficulty
     : DEFAULT_SETTINGS.botDifficulty,
+  redBall: Object.values(RedBallMode).includes(settings.redBall) ? settings.redBall : DEFAULT_SETTINGS.redBall,
+  arenaEvents: settings.arenaEvents === undefined ? DEFAULT_SETTINGS.arenaEvents : Boolean(settings.arenaEvents),
 });
 
 export const createLobby = (roomCode: string, host: LobbyMember, settings: LobbySettings): LobbyState => ({
@@ -163,6 +167,8 @@ export const matchConfigFor = (settings: LobbySettings): MatchConfig => ({
   mode: settings.mode,
   durationSec: settings.durationSec,
   botDifficulty: settings.botDifficulty,
+  redBall: settings.redBall,
+  arenaEvents: settings.arenaEvents,
 });
 
 export const buildSummary = (state: SimState, roster: RosterEntry[]): MatchSummary => ({

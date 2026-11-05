@@ -2,6 +2,7 @@ import { GameEventKind, GameMode, MatchPhase, type GameEvent } from "@/types/gam
 import type { RenderFrame, RenderPlayer } from "@/types/render";
 import { TEAM_COLORS, TRAIL_LIFETIME } from "@/game/constants";
 import { Camera, type ViewInsets } from "@/render/camera";
+import { drawArenaEventFloor, drawMovingBars, isBlackout } from "@/render/draw-arena-event";
 import { drawBall, drawLabels, drawPlayer } from "@/render/draw-entities";
 import { drawField } from "@/render/draw-field";
 import { drawTrail } from "@/render/draw-trails";
@@ -20,6 +21,7 @@ const REPLAY_DELAY_MS = 900;
 const REPLAY_LEAD_SECONDS = 1.7;
 const REPLAY_TAIL_SECONDS = 0.3;
 const REPLAY_SPEED = 0.55;
+const BLACKOUT_DARKNESS = 0.93;
 
 interface ReplayState {
   goalTime: number;
@@ -83,18 +85,27 @@ export class NeonRenderer {
     this.camera.shakeY = (Math.random() - 0.5) * this.effects.shake;
 
     const view = this.resolveView(frame, nowMs);
+    const seconds = nowMs / 1000;
+    const event = view.replay ? { ...frame.arenaEvent, kind: null } : frame.arenaEvent;
     ctx.save();
     this.camera.apply(ctx);
-    drawField(ctx, frame.arena, frame.closedGoals, nowMs / 1000);
-    for (const p of view.players) {
-      const color = TEAM_COLORS[p.team] ?? "#ffffff";
-      drawTrail(ctx, this.history.trail(p.id, view.time, TRAIL_LIFETIME), color);
-    }
-    drawBall(ctx, view.ball, nowMs / 1000);
-    for (const p of view.players) drawPlayer(ctx, p, nowMs / 1000);
+    drawField(ctx, frame.arena, frame.closedGoals, seconds);
+    drawArenaEventFloor(ctx, frame.arena, event, seconds);
+    drawMovingBars(ctx, frame.arena, event, seconds);
+    this.drawWorld(view, seconds, false);
     this.particles.draw(ctx);
     ctx.restore();
-    drawLabels(ctx, view.players, this.camera);
+    if (isBlackout(event) && frame.phase === MatchPhase.Playing) {
+      ctx.save();
+      ctx.fillStyle = `rgba(1, 2, 8, ${BLACKOUT_DARKNESS})`;
+      ctx.fillRect(0, 0, this.width, this.height);
+      this.camera.apply(ctx);
+      this.drawWorld(view, seconds, true);
+      ctx.restore();
+      drawLabels(ctx, view.players.filter((p) => p.isSelf), this.camera);
+    } else {
+      drawLabels(ctx, view.players, this.camera);
+    }
 
     if (this.effects.flash > 0.01) {
       ctx.save();
@@ -104,6 +115,18 @@ export class NeonRenderer {
       ctx.restore();
     }
     if (view.replay) drawReplayOverlay(ctx, this.width, this.height, nowMs / 1000);
+  }
+
+  /** Trails, ball and players; in a blackout only trails, the ball and yourself show through. */
+  private drawWorld(view: { time: number; players: RenderPlayer[]; ball: RenderFrame["ball"] }, seconds: number, blackout: boolean): void {
+    for (const p of view.players) {
+      const color = TEAM_COLORS[p.team] ?? "#ffffff";
+      drawTrail(this.ctx, this.history.trail(p.id, view.time, TRAIL_LIFETIME), color);
+    }
+    drawBall(this.ctx, view.ball, seconds);
+    for (const p of view.players) {
+      if (!blackout || p.isSelf) drawPlayer(this.ctx, p, seconds);
+    }
   }
 
   private resolveView(frame: RenderFrame, nowMs: number) {
@@ -123,8 +146,9 @@ export class NeonRenderer {
     const players: RenderPlayer[] = past.players.flatMap((hp) => {
       const base = byId.get(hp.id);
       if (!base) return [];
-      return [{ ...base, x: hp.x, y: hp.y, dashing: hp.dashing, eliminated: hp.eliminated, vx: 0, vy: 0, slowed: false }];
+      return [{ ...base, x: hp.x, y: hp.y, dashing: hp.dashing, eliminated: hp.eliminated, vx: 0, vy: 0, slowed: false, outTime: 0, shielded: false }];
     });
-    return { time, players, ball: { x: past.ballX, y: past.ballY, vx: 0, vy: 0 }, replay: true };
+    const ball = { x: past.ballX, y: past.ballY, vx: 0, vy: 0, heat: past.ballHeat, redLeft: past.ballRed };
+    return { time, players, ball, replay: true };
   }
 }

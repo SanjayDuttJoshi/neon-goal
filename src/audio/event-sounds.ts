@@ -39,6 +39,27 @@ export const playEventSounds = (sound: SoundEngine, events: GameEvent[], selfId:
       case GameEventKind.MatchEnd:
         sound.play(SoundKind.Whistle);
         break;
+      case GameEventKind.BallRed:
+        sound.play(SoundKind.Siren);
+        vibrate(60);
+        break;
+      case GameEventKind.BallCooled:
+        sound.play(SoundKind.Cool);
+        break;
+      case GameEventKind.KnockOut:
+        sound.play(SoundKind.Burn);
+        if (mine) vibrate([120, 60, 120]);
+        break;
+      case GameEventKind.Respawn:
+        if (mine) sound.play(SoundKind.Respawn);
+        break;
+      case GameEventKind.ArenaWarn:
+        sound.play(SoundKind.Alarm);
+        break;
+      case GameEventKind.ArenaStart:
+      case GameEventKind.GoalBonus:
+        sound.play(SoundKind.Chime);
+        break;
       default:
         break;
     }

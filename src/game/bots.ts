@@ -1,6 +1,8 @@
 import { GameMode, type GoalDef, type PlayerInput, type PlayerState, type SimState, type Vec2 } from "@/types/game";
 import { BALL_RADIUS, BOT_TUNING, PLAYER_MAX_SPEED, PLAYER_RADIUS, type BotTuning } from "@/game/constants";
 import { isShotOnGoal } from "@/game/ball";
+import { avoidRedBall } from "@/game/bot-red-ball";
+import { isOnField } from "@/game/players";
 import { clamp, nextRandom, normalize, raySegmentDistance } from "@/game/vector";
 
 const ARRIVE_RADIUS = 40;
@@ -50,7 +52,7 @@ const isClosestTeammate = (state: SimState, bot: PlayerState): boolean => {
   const { ball } = state;
   const myDist = Math.hypot(ball.x - bot.x, ball.y - bot.y);
   return !state.players.some(
-    (p) => p !== bot && !p.eliminated && p.team === bot.team && Math.hypot(ball.x - p.x, ball.y - p.y) < myDist - 1,
+    (p) => p !== bot && isOnField(p) && p.team === bot.team && Math.hypot(ball.x - p.x, ball.y - p.y) < myDist - 1,
   );
 };
 
@@ -60,7 +62,7 @@ const isLastLine = (state: SimState, bot: PlayerState, ownGoal: GoalDef): boolea
   return !state.players.some(
     (p) =>
       p !== bot &&
-      !p.eliminated &&
+      isOnField(p) &&
       p.team === bot.team &&
       Math.hypot(ownGoal.centerX - p.x, ownGoal.centerY - p.y) < myDist - 1,
   );
@@ -159,7 +161,7 @@ const decide = (state: SimState, bot: PlayerState, tuning: BotTuning): void => {
     attack(state, bot, attackGoal, tuning);
     return;
   }
-  const mates = state.players.filter((p) => p.team === bot.team && !p.eliminated && p !== bot && !isClosestTeammate(state, p));
+  const mates = state.players.filter((p) => p.team === bot.team && isOnField(p) && p !== bot && !isClosestTeammate(state, p));
   const slot = mates.filter((p) => state.players.indexOf(p) < state.players.indexOf(bot)).length;
   support(state, bot, ownGoal, slot);
 };
@@ -170,6 +172,7 @@ export const computeBotInput = (state: SimState, bot: PlayerState, dt: number): 
   if (bot.brain.thinkTimer <= 0) {
     bot.brain.thinkTimer = tuning.thinkInterval * (0.7 + random(state) * 0.6);
     decide(state, bot, tuning);
+    avoidRedBall(state, bot);
   }
   const dx = bot.brain.targetX - bot.x;
   const dy = bot.brain.targetY - bot.y;

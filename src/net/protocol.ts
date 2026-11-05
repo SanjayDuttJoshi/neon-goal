@@ -1,19 +1,24 @@
-import { GameEventKind, MatchPhase, type GameEvent, type PlayerStats, type RosterEntry, type SimState } from "@/types/game";
-import type { NetPlayer, NetSnapshot, WireEvent, WireInput, WirePlayer, WireSnapshot } from "@/types/net";
+import { ArenaEventStage, GameEventKind, MatchPhase, type GameEvent, type PlayerStats, type RosterEntry, type SimState } from "@/types/game";
+import type { NetArenaEvent, NetPlayer, NetSnapshot, WireEvent, WireInput, WirePlayer, WireSnapshot } from "@/types/net";
 import type { PlayerInput } from "@/types/game";
 import { isFiniteNumber, isEnumValue, isNumberArray, isRecord } from "@/lib/guards";
+import { ARENA_EVENT_ORDER, HEAT_TO_RED } from "@/game/constants";
+import { kindIndex } from "@/game/arena-events";
 
-export const PROTOCOL_VERSION = 1;
-export const APP_ID = "neon-goal-arena-v1-sdj";
+/** V2 (red ball + arena events) uses its own relay namespace, so V1 and V2 rooms never meet. */
+export const PROTOCOL_VERSION = 2;
+export const APP_ID = "neon-goal-arena-v2-sdj";
 
 const FLAG_DASHING = 1;
 const FLAG_SLOWED = 2;
 const FLAG_ELIMINATED = 4;
 const FLAG_BOT = 8;
+const FLAG_SHIELDED = 16;
 const MAX_PLAYERS_ON_WIRE = 16;
 const MAX_EVENTS_ON_WIRE = 64;
 
 const PHASES = Object.values(MatchPhase);
+const STAGES = Object.values(ArenaEventStage);
 const EVENT_KINDS = Object.values(GameEventKind);
 
 const r1 = (value: number): number => Math.round(value * 10) / 10;
@@ -38,6 +43,7 @@ const statsRow = (stats: PlayerStats): number[] => [
   stats.saves,
   stats.bounces,
   stats.powerShots,
+  stats.knockouts,
 ];
 
 export interface EncodeOptions {
@@ -58,9 +64,11 @@ export const encodeSnapshot = (state: SimState, options: EncodeOptions): WireSna
     (p.dashTime > 0 ? FLAG_DASHING : 0) |
       (p.slowTime > 0 ? FLAG_SLOWED : 0) |
       (p.eliminated ? FLAG_ELIMINATED : 0) |
-      (p.botControlled ? FLAG_BOT : 0),
+      (p.botControlled ? FLAG_BOT : 0) |
+      (p.shieldTime > 0 ? FLAG_SHIELDED : 0),
     r2(p.dashCooldown),
     options.lastSeqs.get(p.id) ?? 0,
+    Math.ceil(p.outTime * 10),
   ]);
   const events: WireEvent[] = options.events.map((e) => [
     e.id,
@@ -83,7 +91,8 @@ export const encodeSnapshot = (state: SimState, options: EncodeOptions): WireSna
     sc: [...state.scores],
     lv: [...state.lives],
     cg: [...state.closedGoals],
-    b: [r1(state.ball.x), r1(state.ball.y), r1(state.ball.vx), r1(state.ball.vy)],
+    b: [r1(state.ball.x), r1(state.ball.y), r1(state.ball.vx), r1(state.ball.vy), Math.round((state.ball.heat / HEAT_TO_RED[state.config.mode]) * 100), state.ball.redLeft],
+    ae: [kindIndex(state.arenaEvent.kind), STAGES.indexOf(state.arenaEvent.stage), r2(state.arenaEvent.timer)],
     p: players,
     ev: events,
   };
@@ -93,8 +102,8 @@ export const encodeSnapshot = (state: SimState, options: EncodeOptions): WireSna
 };
 
 const decodePlayer = (row: unknown): NetPlayer | null => {
-  if (!isNumberArray(row, 8) || row.length !== 8) return null;
-  const [index, x, y, vx, vy, flags, dashCd, lastSeq] = row;
+  if (!isNumberArray(row, 9) || row.length !== 9) return null;
+  const [index, x, y, vx, vy, flags, dashCd, lastSeq, outTenths] = row;
   return {
     index,
     x,
@@ -107,7 +116,17 @@ const decodePlayer = (row: unknown): NetPlayer | null => {
     botControlled: (flags & FLAG_BOT) !== 0,
     dashCooldown: dashCd / 100,
     lastSeq,
+    shielded: (flags & FLAG_SHIELDED) !== 0,
+    outTime: Math.max(0, outTenths / 10),
   };
+};
+
+const decodeArenaEvent = (row: unknown): NetArenaEvent | null => {
+  if (!isNumberArray(row, 3) || row.length !== 3) return null;
+  const [kind, stage, timer] = row;
+  const stageValue = STAGES[stage];
+  if (!stageValue || kind >= ARENA_EVENT_ORDER.length) return null;
+  return { kind: ARENA_EVENT_ORDER[kind] ?? null, stage: stageValue, timer: Math.max(0, timer / 100) };
 };
 
 const decodeEvent = (row: unknown, roster: RosterEntry[]): GameEvent | null => {
@@ -132,8 +151,8 @@ const decodeStats = (rows: unknown): PlayerStats[] | null => {
   if (!Array.isArray(rows) || rows.length > MAX_PLAYERS_ON_WIRE) return null;
   const result: PlayerStats[] = [];
   for (const row of rows) {
-    if (!isNumberArray(row, 5) || row.length !== 5) return null;
-    result.push({ goals: row[0], ownGoals: row[1], saves: row[2], bounces: row[3], powerShots: row[4] });
+    if (!isNumberArray(row, 6) || row.length !== 6) return null;
+    result.push({ goals: row[0], ownGoals: row[1], saves: row[2], bounces: row[3], powerShots: row[4], knockouts: row[5] });
   }
   return result;
 };
@@ -141,10 +160,12 @@ const decodeStats = (rows: unknown): PlayerStats[] | null => {
 /** Validates and decodes a snapshot coming from an untrusted peer. */
 export const decodeSnapshot = (data: unknown, roster: RosterEntry[]): NetSnapshot | null => {
   if (!isRecord(data)) return null;
-  const { k, m, ph, pt, tl, ot, oe, sc, lv, cg, b, p, ev, st, w } = data;
+  const { k, m, ph, pt, tl, ot, oe, sc, lv, cg, b, ae, p, ev, st, w } = data;
   if (![k, m, pt, tl, ot, oe].every(isFiniteNumber) || !isEnumValue(PHASES, ph)) return null;
   if (!isNumberArray(sc, 8) || !isNumberArray(lv, 8) || !isNumberArray(cg, 8)) return null;
-  if (!isNumberArray(b, 4) || b.length !== 4) return null;
+  if (!isNumberArray(b, 6) || b.length !== 6) return null;
+  const arenaEvent = decodeArenaEvent(ae);
+  if (!arenaEvent) return null;
   if (!Array.isArray(p) || p.length > MAX_PLAYERS_ON_WIRE) return null;
   if (!Array.isArray(ev) || ev.length > MAX_EVENTS_ON_WIRE) return null;
   const players: NetPlayer[] = [];
@@ -165,7 +186,8 @@ export const decodeSnapshot = (data: unknown, roster: RosterEntry[]): NetSnapsho
     scores: sc,
     lives: lv,
     closedGoals: cg,
-    ball: { x: b[0], y: b[1], vx: b[2], vy: b[3] },
+    ball: { x: b[0], y: b[1], vx: b[2], vy: b[3], heat: Math.min(1, Math.max(0, b[4] / 100)), redLeft: Math.max(0, b[5]) },
+    arenaEvent,
     players,
     events,
     stats: st === undefined ? null : decodeStats(st),

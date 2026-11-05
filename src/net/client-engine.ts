@@ -1,7 +1,7 @@
-import { MatchPhase, type ArenaDef, type GameEvent, type PlayerInput, type PlayerStats, type RosterEntry } from "@/types/game";
-import type { NetPlayer, NetSnapshot, WireInput } from "@/types/net";
+import { ArenaEventKind, ArenaEventStage, MatchPhase, type ArenaDef, type GameEvent, type PlayerInput, type PlayerStats, type RosterEntry } from "@/types/game";
+import type { NetArenaEvent, NetPlayer, NetSnapshot, WireInput } from "@/types/net";
 import type { HudState, RenderFrame, RenderPlayer } from "@/types/render";
-import { DASH_COOLDOWN, SIM_DT, SIM_HZ } from "@/game/constants";
+import { DASH_COOLDOWN, ICE_TRACTION, SIM_DT, SIM_HZ } from "@/game/constants";
 import { lerp } from "@/game/vector";
 import { encodeInput } from "@/net/protocol";
 import { LocalPredictor } from "@/net/prediction";
@@ -12,6 +12,8 @@ const MAX_BUFFER = 90;
 const MAX_EXTRAPOLATE_TICKS = 4;
 const CLOCK_RESET_TICKS = 40;
 const TELEPORT_DISTANCE = 150;
+
+const isIceActive = (ev: NetArenaEvent): boolean => ev.kind === ArenaEventKind.Ice && ev.stage === ArenaEventStage.Active;
 
 interface QueuedEffect {
   tick: number;
@@ -88,8 +90,8 @@ export class ClientEngine {
     const rt = this.renderTick(nowMs);
     const [a, b, t] = this.bracket(rt);
     const players = a.players.map((pa) => this.renderPlayer(pa, b.players[pa.index] ?? pa, t, b.tick - a.tick));
-    const ball = this.blend(a.ball, b.ball, t, b.tick - a.tick);
     const base = t < 0.5 ? a : b;
+    const ball = { ...this.blend(a.ball, b.ball, t, b.tick - a.tick), heat: base.ball.heat, redLeft: base.ball.redLeft };
     return {
       time: rt * SIM_DT,
       phase: base.phase,
@@ -98,6 +100,7 @@ export class ClientEngine {
       closedGoals: base.closedGoals,
       ball,
       players,
+      arenaEvent: base.arenaEvent,
     };
   }
 
@@ -115,6 +118,9 @@ export class ClientEngine {
       lives: snap.lives,
       selfTeam: self ? this.roster[this.selfIndex].team : null,
       selfDashReady: self ? 1 - self.dashCooldown / DASH_COOLDOWN : 1,
+      selfOutTime: self?.outTime ?? 0,
+      redLeft: snap.ball.redLeft,
+      arenaEvent: snap.arenaEvent,
     };
   }
 
@@ -177,6 +183,8 @@ export class ClientEngine {
       isSelf,
       isBot: entry.isBot,
       dashReady: 1 - b.dashCooldown / DASH_COOLDOWN,
+      outTime: b.outTime,
+      shielded: b.shielded,
     };
   }
 
@@ -184,10 +192,11 @@ export class ClientEngine {
     if (!this.predictor) return;
     const own = snap.players[this.selfIndex];
     const live = snap.phase === MatchPhase.Playing || snap.phase === MatchPhase.GoalScored;
-    if (!own || !live || own.eliminated) {
+    if (!own || !live || own.eliminated || own.outTime > 0) {
       this.predictor.deactivate(this.lastDash);
       return;
     }
+    this.predictor.traction = isIceActive(snap.arenaEvent) ? ICE_TRACTION : 1;
     this.predictor.reconcile(own);
   }
 }

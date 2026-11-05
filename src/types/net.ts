@@ -1,4 +1,4 @@
-import type { BotDifficulty, GameEvent, GameMode, MatchPhase, PlayerStats, RosterEntry } from "@/types/game";
+import type { ArenaEventKind, ArenaEventStage, BotDifficulty, GameEvent, GameMode, MatchPhase, PlayerStats, RedBallMode, RosterEntry } from "@/types/game";
 
 export enum Channel {
   Hello = "hello",
@@ -57,6 +57,8 @@ export interface LobbySettings {
   durationSec: number;
   botFill: boolean;
   botDifficulty: BotDifficulty;
+  redBall: RedBallMode;
+  arenaEvents: boolean;
 }
 
 export interface SummaryPlayer {
@@ -105,8 +107,8 @@ export interface KickMessage {
 /** [seq, mx * 100, my * 100, dashCount] */
 export type WireInput = [number, number, number, number];
 
-/** [rosterIndex, x, y, vx, vy, flags, dashCooldown * 100, lastSeq] */
-export type WirePlayer = [number, number, number, number, number, number, number, number];
+/** [rosterIndex, x, y, vx, vy, flags, dashCooldown * 100, lastSeq, outTime * 10] */
+export type WirePlayer = [number, number, number, number, number, number, number, number, number];
 
 /** [id, kind, x, y, team, playerIndex, otherIndexOrFlag, value] */
 export type WireEvent = [number, string, number, number, number, number, number, number];
@@ -122,10 +124,13 @@ export interface WireSnapshot {
   sc: number[];
   lv: number[];
   cg: number[];
-  b: [number, number, number, number];
+  /** [x, y, vx, vy, heat percent towards red, redLeft] */
+  b: [number, number, number, number, number, number];
+  /** Arena event [kindIndex or -1, stageIndex, timer * 100] */
+  ae: [number, number, number];
   p: WirePlayer[];
   ev: WireEvent[];
-  /** Per-player stats [goals, ownGoals, saves, bounces, powerShots], sent about once a second. */
+  /** Per-player stats [goals, ownGoals, saves, bounces, powerShots, knockouts], sent about once a second. */
   st?: number[][];
   w?: number;
 }
@@ -135,6 +140,15 @@ export interface NetBall {
   y: number;
   vx: number;
   vy: number;
+  /** 0..1 progress towards turning red. */
+  heat: number;
+  redLeft: number;
+}
+
+export interface NetArenaEvent {
+  kind: ArenaEventKind | null;
+  stage: ArenaEventStage;
+  timer: number;
 }
 
 export interface NetPlayer {
@@ -149,6 +163,8 @@ export interface NetPlayer {
   botControlled: boolean;
   dashCooldown: number;
   lastSeq: number;
+  shielded: boolean;
+  outTime: number;
 }
 
 export interface NetSnapshot {
@@ -163,6 +179,7 @@ export interface NetSnapshot {
   lives: number[];
   closedGoals: number[];
   ball: NetBall;
+  arenaEvent: NetArenaEvent;
   players: NetPlayer[];
   events: GameEvent[];
   stats: PlayerStats[] | null;

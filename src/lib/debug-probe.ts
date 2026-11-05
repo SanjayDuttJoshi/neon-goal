@@ -11,6 +11,10 @@ export interface DebugProbe {
   ownGoal: Vec2 | null;
   enemyGoals: Vec2[];
   dashReady: number;
+  /** Red touches left (0 = normal ball); the autopilot keeps its body off a red ball. */
+  ballRed: number;
+  selfOut: boolean;
+  arenaEvent: string;
   frames: number;
   slowFrames: number;
   maxFrameMs: number;
@@ -50,6 +54,9 @@ export const publishProbe = (frame: RenderFrame | null, camera: Camera, selfTeam
     ownGoal: own ? camera.worldToScreen(own.centerX, own.centerY) : null,
     enemyGoals: targets.map((g) => camera.worldToScreen(g.centerX, g.centerY)),
     dashReady: self?.dashReady ?? 0,
+    ballRed: frame.ball.redLeft,
+    selfOut: (self?.outTime ?? 0) > 0,
+    arenaEvent: frame.arenaEvent.kind ? `${frame.arenaEvent.kind}:${frame.arenaEvent.stage}` : "",
     frames: (prev?.frames ?? 0) + 1,
     slowFrames: (prev?.slowFrames ?? 0) + (frameMs > SLOW_FRAME_MS ? 1 : 0),
     maxFrameMs: Math.max(prev?.maxFrameMs ?? 0, frameMs),

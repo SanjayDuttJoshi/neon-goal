@@ -1,7 +1,8 @@
-import { GameEventKind, MatchPhase, type PlayerInput, type PlayerState, type SimState } from "@/types/game";
+import { ArenaEventKind, GameEventKind, MatchPhase, type PlayerInput, type PlayerState, type SimState } from "@/types/game";
 import {
   BALL_DRAG,
   BALL_STOP_SPEED,
+  ICE_TRACTION,
   OVERTIME_MAX_SECONDS,
   PHYSICS_SUBSTEPS,
   PLAYER_RADIUS,
@@ -13,11 +14,14 @@ import {
 import { ballWallSegments, detectGoal, stepBallSubstep } from "@/game/ball";
 import { botSpeedFactor, computeBotInput } from "@/game/bots";
 import { pushEvent } from "@/game/events";
-import { endMatch, finishCelebration, handleTimeUp, leadingTeam, scoreGoal } from "@/game/match";
+import { isArenaEventActive, tickArenaEvents } from "@/game/arena-events";
+import { endMatch, finishCelebration, handleTimeUp, leadingTeam, scoreGoal, spawnPointOf } from "@/game/match";
+import { tickBallHeat, tickOutPlayers } from "@/game/red-ball";
 import {
   NEUTRAL_INPUT,
   collidePlayerWithWalls,
   collidePlayers,
+  isOnField,
   normalizeInput,
   steerPlayer,
   tickPlayerTimers,
@@ -28,9 +32,10 @@ import { distanceToSegment } from "@/game/vector";
 
 export type InputMap = Record<string, PlayerInput | undefined>;
 
-const activePlayers = (state: SimState): PlayerState[] => state.players.filter((p) => !p.eliminated);
+const activePlayers = (state: SimState): PlayerState[] => state.players.filter(isOnField);
 
 const applyInputs = (state: SimState, inputs: InputMap, dt: number): void => {
+  const traction = isArenaEventActive(state, ArenaEventKind.Ice) ? ICE_TRACTION : 1;
   for (const player of activePlayers(state)) {
     tickPlayerTimers(player, dt);
     const input = player.botControlled ? computeBotInput(state, player, dt) : (inputs[player.id] ?? NEUTRAL_INPUT);
@@ -38,7 +43,7 @@ const applyInputs = (state: SimState, inputs: InputMap, dt: number): void => {
     if (tryStartDash(player, input, move)) {
       pushEvent(state, { kind: GameEventKind.Dash, x: player.x, y: player.y, team: player.team, playerId: player.id });
     }
-    steerPlayer(player, move, dt, player.botControlled ? botSpeedFactor(state) : 1);
+    steerPlayer(player, move, dt, player.botControlled ? botSpeedFactor(state) : 1, traction);
   }
 };
 
@@ -81,7 +86,7 @@ const runPhysics = (state: SimState, dt: number): void => {
 
 const updateTrails = (state: SimState): void => {
   for (const player of state.players) {
-    if (!player.eliminated) {
+    if (isOnField(player)) {
       emitTrailPoint(player.trail, player.x, player.y, Math.hypot(player.vx, player.vy), state.time, player.dashTime > 0);
     }
     expireTrail(player.trail, state.time);
@@ -138,6 +143,9 @@ export const stepSim = (state: SimState, inputs: InputMap, dt: number): void => 
   updateTrails(state);
   if (state.phase === MatchPhase.Playing) {
     applySlowFromTrails(state);
+    tickBallHeat(state, dt);
+    tickOutPlayers(state, dt, (player) => spawnPointOf(state, player));
+    tickArenaEvents(state, dt);
     advanceClock(state, dt);
     return;
   }

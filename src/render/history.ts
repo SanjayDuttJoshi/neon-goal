@@ -14,6 +14,8 @@ export interface HistoryFrame {
   time: number;
   ballX: number;
   ballY: number;
+  ballHeat: number;
+  ballRed: number;
   players: HistoryPlayer[];
 }
 
@@ -48,7 +50,16 @@ export class FrameHistory {
       time: frame.time,
       ballX: frame.ball.x,
       ballY: frame.ball.y,
-      players: frame.players.map((p) => ({ id: p.id, team: p.team, x: p.x, y: p.y, dashing: p.dashing, eliminated: p.eliminated })),
+      ballHeat: frame.ball.heat,
+      ballRed: frame.ball.redLeft,
+      players: frame.players.map((p) => ({
+        id: p.id,
+        team: p.team,
+        x: p.x,
+        y: p.y,
+        dashing: p.dashing,
+        eliminated: p.eliminated || p.outTime > 0,
+      })),
     });
     const cutoff = frame.time - KEEP_SECONDS;
     let drop = 0;

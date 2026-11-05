@@ -5,10 +5,11 @@ import { TEAM_NAMES } from "@/game/constants";
 /** Busy trails rack up dozens of bounces, so style points are capped at half a goal. */
 const MAX_STYLE_POINTS = 5;
 
-/** Goals and saves decide MVP; bounces and power hits only break ties. */
+/** Goals, saves and red-ball knock-outs decide MVP; bounces and power hits only break ties. */
 const scoreOf = (p: SummaryPlayer): number =>
   p.stats.goals * 10 +
-  p.stats.saves * 3 -
+  p.stats.saves * 3 +
+  p.stats.knockouts * 2 -
   p.stats.ownGoals * 4 +
   Math.min(MAX_STYLE_POINTS, p.stats.powerShots * 0.05 + p.stats.bounces * 0.02);
 

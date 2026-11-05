@@ -3,13 +3,15 @@ import { BALL_RADIUS, PLAYER_RADIUS, TEAM_COLORS } from "@/game/constants";
 import { lighten, withAlpha } from "@/render/colors";
 import type { Camera } from "@/render/camera";
 import { canvasFonts } from "@/render/fonts";
+import { RED_BALL_COLOR, ballTint, drawBallHeat, drawOutGhost, drawShield } from "@/render/draw-red-ball";
 
 const GHOSTS = 5;
 
 export const drawBall = (ctx: CanvasRenderingContext2D, ball: RenderBall, time: number): void => {
   const speed = Math.hypot(ball.vx, ball.vy);
   const hot = Math.min(1, Math.max(0, (speed - 500) / 600));
-  const glowColor = hot > 0.3 ? "#fb923c" : "#e0f2fe";
+  const tint = ballTint(ball);
+  const glowColor = tint ?? (hot > 0.3 ? "#fb923c" : "#e0f2fe");
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   if (speed > 250) {
@@ -24,7 +26,7 @@ export const drawBall = (ctx: CanvasRenderingContext2D, ball: RenderBall, time: 
   }
   const pulse = 1 + Math.sin(time * 10) * 0.05;
   const glow = ctx.createRadialGradient(ball.x, ball.y, BALL_RADIUS * 0.4, ball.x, ball.y, BALL_RADIUS * 3.6 * pulse);
-  glow.addColorStop(0, withAlpha(hot > 0.3 ? "#fdba74" : "#bae6fd", 0.75));
+  glow.addColorStop(0, withAlpha(tint ?? (hot > 0.3 ? "#fdba74" : "#bae6fd"), 0.75));
   glow.addColorStop(1, "rgba(14, 165, 233, 0)");
   ctx.globalAlpha = 1;
   ctx.fillStyle = glow;
@@ -35,16 +37,22 @@ export const drawBall = (ctx: CanvasRenderingContext2D, ball: RenderBall, time: 
   ctx.save();
   const core = ctx.createRadialGradient(ball.x - 4, ball.y - 4, 2, ball.x, ball.y, BALL_RADIUS);
   core.addColorStop(0, "#ffffff");
-  core.addColorStop(1, hot > 0.3 ? "#fed7aa" : "#bae6fd");
+  core.addColorStop(1, tint ?? (hot > 0.3 ? "#fed7aa" : "#bae6fd"));
   ctx.fillStyle = core;
   ctx.beginPath();
   ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
+  drawBallHeat(ctx, ball, time);
 };
 
 export const drawPlayer = (ctx: CanvasRenderingContext2D, p: RenderPlayer, time: number): void => {
   if (p.eliminated) return;
+  if (p.outTime > 0) {
+    drawOutGhost(ctx, p, time);
+    return;
+  }
+  if (p.shielded) drawShield(ctx, p, time);
   const color = TEAM_COLORS[p.team] ?? "#ffffff";
   const r = PLAYER_RADIUS;
   ctx.save();
@@ -133,6 +141,12 @@ export const drawLabels = (ctx: CanvasRenderingContext2D, players: RenderPlayer[
   for (const p of players) {
     if (p.eliminated) continue;
     const s = camera.worldToScreen(p.x, p.y);
+    if (p.outTime > 0) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = RED_BALL_COLOR;
+      ctx.fillText(`🔥 ${Math.ceil(p.outTime)}`, s.x, s.y + fontSize / 2);
+      continue;
+    }
     const label = p.isSelf ? `▼ ${p.name}` : p.name;
     ctx.globalAlpha = p.isBot && !p.isSelf ? 0.6 : 0.95;
     ctx.fillStyle = "rgba(2, 6, 23, 0.7)";

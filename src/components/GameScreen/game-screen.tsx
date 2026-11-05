@@ -17,6 +17,7 @@ import { Scoreboard } from "@/components/GameScreen/scoreboard";
 import { SummaryOverlay } from "@/components/GameScreen/summary-overlay";
 import { Toast } from "@/components/GameScreen/toast";
 import { TouchControls } from "@/components/GameScreen/touch-controls";
+import { TwistHud } from "@/components/GameScreen/twist-hud";
 
 const TOP_INSET = 64;
 
@@ -71,6 +72,7 @@ export const GameScreen = ({ session, ui, sound, muted, onToggleMute, onLeave }:
         />
       )}
       {ui.hud && <PhaseOverlay hud={ui.hud} lastGoal={lastGoal} showKeys={!isTouch} />}
+      {ui.hud && <TwistHud hud={ui.hud} />}
       <FeedList feed={ui.feed} now={now} />
       {!selfEntry && lobby?.status === LobbyStatus.Playing && (
         <p className="pointer-events-none absolute inset-x-0 bottom-4 z-20 text-center font-display text-xs uppercase tracking-[0.3em] text-slate-400">

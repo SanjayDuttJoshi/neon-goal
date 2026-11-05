@@ -11,6 +11,7 @@ import { HowToPlay } from "@/components/HomeScreen/how-to-play";
 import { JoinPanel } from "@/components/HomeScreen/join-panel";
 import { NameField } from "@/components/HomeScreen/name-field";
 import { PracticePanel } from "@/components/HomeScreen/practice-panel";
+import { CLASSIC_URL } from "@/lib/version";
 
 interface HomeScreenProps {
   name: string;
@@ -64,6 +65,11 @@ export const HomeScreen = ({ name, onNameChange, inviteCode, onCreate, onJoin, o
             ? Kaise khelein
           </button>
           <span>100% free · No login · Dosto ko code bhejo</span>
+          {CLASSIC_URL && (
+            <a href={CLASSIC_URL} className="font-display uppercase tracking-widest text-slate-400 underline-offset-4 hover:text-slate-200 hover:underline">
+              V1 Classic khelo →
+            </a>
+          )}
         </div>
       </div>
       <HowToPlay open={helpOpen} onClose={() => setHelpOpen(false)} />

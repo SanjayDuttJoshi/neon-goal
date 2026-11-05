@@ -9,6 +9,9 @@ export interface Probe {
   ownGoal: { x: number; y: number } | null;
   enemyGoals: { x: number; y: number }[];
   dashReady: number;
+  ballRed: number;
+  selfOut: boolean;
+  arenaEvent: string;
   frames: number;
   slowFrames: number;
   maxFrameMs: number;
@@ -19,6 +22,8 @@ const LEAD_SECONDS = 0.22;
 const BEHIND_GAP = 52;
 const LINE_TOLERANCE = 30;
 const DASH_RANGE = 150;
+/** Screen pixels the autopilot keeps between its body and a red ball. */
+const RED_SAFE_DISTANCE = 110;
 
 const norm = (x: number, y: number) => {
   const len = Math.hypot(x, y) || 1;
@@ -46,6 +51,8 @@ export class Autopilot {
   intent(probe: Probe | null): { dir: { x: number; y: number }; dash: boolean } | null {
     if (!probe || !probe.self || probe.phase !== "playing" || probe.enemyGoals.length === 0) return null;
     const s = probe.self;
+    if (probe.selfOut) return null;
+    if (probe.ballRed > 0) return this.dodgeRed(probe, s);
     const b = { x: probe.ball.x + probe.ballVel.x * LEAD_SECONDS, y: probe.ball.y + probe.ballVel.y * LEAD_SECONDS };
     const goal = probe.enemyGoals.reduce((best, g) => (Math.hypot(g.x - b.x, g.y - b.y) < Math.hypot(best.x - b.x, best.y - b.y) ? g : best));
     const toGoal = norm(goal.x - b.x, goal.y - b.y);
@@ -68,6 +75,16 @@ export class Autopilot {
     }
     const dist = Math.hypot(b.x - s.x, b.y - s.y);
     return { dir: norm(target.x - s.x, target.y - s.y), dash: attack && dist < DASH_RANGE && probe.dashReady >= 1 };
+  }
+
+  /** Red ball: stay out of its way and cut across its path so the trail (not the body) plays it. */
+  private dodgeRed(probe: Probe, s: { x: number; y: number }): { dir: { x: number; y: number }; dash: boolean } {
+    const away = norm(s.x - probe.ball.x, s.y - probe.ball.y);
+    const dist = Math.hypot(s.x - probe.ball.x, s.y - probe.ball.y);
+    const v = norm(probe.ballVel.x, probe.ballVel.y);
+    const side = away.x * v.y - away.y * v.x >= 0 ? 1 : -1;
+    if (dist < RED_SAFE_DISTANCE) return { dir: norm(away.x + v.y * side, away.y - v.x * side), dash: dist < 60 && probe.dashReady >= 1 };
+    return { dir: { x: v.y * side, y: -v.x * side }, dash: false };
   }
 
   async step(probe: Probe | null): Promise<void> {

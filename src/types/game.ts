@@ -18,6 +18,26 @@ export enum BotDifficulty {
   Hard = "hard",
 }
 
+/** How long the red ball knocks a player out for (or off). */
+export enum RedBallMode {
+  Off = "off",
+  Short = "short",
+  Long = "long",
+}
+
+export enum ArenaEventKind {
+  Blackout = "blackout",
+  MovingWalls = "walls",
+  Ice = "ice",
+  GoldenTime = "golden",
+}
+
+export enum ArenaEventStage {
+  Idle = "idle",
+  Warning = "warn",
+  Active = "active",
+}
+
 export enum GameEventKind {
   TrailBounce = "trail",
   PowerBounce = "power",
@@ -31,6 +51,15 @@ export enum GameEventKind {
   Slowed = "slow",
   Dash = "dash",
   Overtime = "ot",
+  BallRed = "red",
+  BallCooled = "cool",
+  KnockOut = "ko",
+  Respawn = "back",
+  ArenaWarn = "arena-warn",
+  ArenaStart = "arena-start",
+  ArenaEnd = "arena-end",
+  /** Extra points on a red-ball or golden-time goal; value is the total points. */
+  GoalBonus = "bonus",
 }
 
 export interface Vec2 {
@@ -92,6 +121,7 @@ export interface PlayerStats {
   saves: number;
   bounces: number;
   powerShots: number;
+  knockouts: number;
 }
 
 export interface BotBrain {
@@ -122,6 +152,10 @@ export interface PlayerState {
   slowImmunity: number;
   trail: TrailPoint[];
   eliminated: boolean;
+  /** Seconds left off the field after touching the red ball. */
+  outTime: number;
+  /** Seconds of red-ball immunity after coming back. */
+  shieldTime: number;
   stats: PlayerStats;
   brain: BotBrain;
 }
@@ -141,12 +175,32 @@ export interface BallState {
   lastTouch: TouchInfo | null;
   /** Latest touch by a different team than lastTouch (the shot a defender deflected). */
   prevTouch: TouchInfo | null;
+  /** Trail bounces counted towards turning red. */
+  heat: number;
+  /** Trail bounces left while red; 0 means the ball is normal. */
+  redLeft: number;
+  /** Seconds before a red ball cools down on its own. */
+  redTime: number;
+  /** Seconds before the ball can start heating up again. */
+  coolTime: number;
 }
 
 export interface MatchConfig {
   mode: GameMode;
   durationSec: number;
   botDifficulty: BotDifficulty;
+  redBall: RedBallMode;
+  arenaEvents: boolean;
+}
+
+export interface ArenaEventState {
+  kind: ArenaEventKind | null;
+  stage: ArenaEventStage;
+  /** Seconds left in the current stage. */
+  timer: number;
+  /** Seconds of play until the next warning. */
+  nextIn: number;
+  lastKind: ArenaEventKind | null;
 }
 
 export interface RosterEntry {
@@ -189,4 +243,5 @@ export interface SimState {
   winner: number | null;
   rngState: number;
   endAfterCelebration: boolean;
+  arenaEvent: ArenaEventState;
 }

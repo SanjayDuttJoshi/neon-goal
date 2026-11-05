@@ -19,6 +19,7 @@ const STAT_COLUMNS = [
   { key: "goals", label: "Goal" },
   { key: "saves", label: "Save" },
   { key: "powerShots", label: "Power" },
+  { key: "knockouts", label: "KO" },
   { key: "bounces", label: "Bounce" },
 ] as const;
 

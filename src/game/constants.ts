@@ -1,4 +1,4 @@
-import { BotDifficulty, GameMode } from "@/types/game";
+import { ArenaEventKind, BotDifficulty, GameMode, RedBallMode } from "@/types/game";
 
 export const SIM_HZ = 60;
 export const SIM_DT = 1 / SIM_HZ;
@@ -50,8 +50,44 @@ export const SAVE_LOOKAHEAD = 420;
 export const DEFLECTION_CREDIT_SECONDS = 3;
 export const SAVE_MIN_SPEED = 380;
 
-export const MATCH_DURATIONS_SEC = [120, 180, 300] as const;
-export const DEFAULT_DURATION_SEC = 180;
+export const MATCH_DURATIONS_SEC = [360, 480, 600] as const;
+export const DEFAULT_DURATION_SEC = 360;
+
+/** Trail bounces before the ball turns red; bigger games heat it up faster, so they need more. */
+export const HEAT_TO_RED: Record<GameMode, number> = {
+  [GameMode.Solo]: 6,
+  [GameMode.Duo]: 8,
+  [GameMode.Squad]: 10,
+  [GameMode.FreeForAll]: 8,
+};
+export const RED_TOUCHES = 6;
+/** A red ball nobody plays still cools down, so the game never stalls. */
+export const RED_MAX_SECONDS = 10;
+/** Right after turning red the ball doesn't burn yet, so players next to it get a moment to back off. */
+export const RED_IGNITION_SECONDS = 1;
+export const RED_COOLDOWN_SECONDS = 25;
+/** No red ball in the first seconds after a kickoff. */
+export const RED_KICKOFF_COOLDOWN_SECONDS = 10;
+export const OUT_SECONDS: Record<RedBallMode, number> = {
+  [RedBallMode.Off]: 0,
+  [RedBallMode.Short]: 6,
+  [RedBallMode.Long]: 12,
+};
+export const RESPAWN_SHIELD_SECONDS = 2;
+
+export const ARENA_FIRST_EVENT_SECONDS = 40;
+export const ARENA_EVENT_GAP_MIN = 25;
+export const ARENA_EVENT_GAP_MAX = 35;
+export const ARENA_WARNING_SECONDS = 3;
+export const ARENA_EVENT_SECONDS: Record<ArenaEventKind, number> = {
+  [ArenaEventKind.Blackout]: 5,
+  [ArenaEventKind.MovingWalls]: 12,
+  [ArenaEventKind.Ice]: 8,
+  [ArenaEventKind.GoldenTime]: 10,
+};
+export const ARENA_EVENT_ORDER = [ArenaEventKind.Blackout, ArenaEventKind.MovingWalls, ArenaEventKind.Ice, ArenaEventKind.GoldenTime] as const;
+/** Fraction of normal grip on the ice floor. */
+export const ICE_TRACTION = 0.18;
 
 export const TEAM_COLORS = ["#22d3ee", "#f472b6", "#a3e635", "#fbbf24"] as const;
 export const TEAM_NAMES = ["Cyan", "Magenta", "Lime", "Amber"] as const;

@@ -47,7 +47,9 @@ export const createPlayer = (entry: RosterEntry, spawn: Vec2): PlayerState => ({
   slowImmunity: 0,
   trail: [],
   eliminated: false,
-  stats: { goals: 0, ownGoals: 0, saves: 0, bounces: 0, powerShots: 0 },
+  outTime: 0,
+  shieldTime: 0,
+  stats: { goals: 0, ownGoals: 0, saves: 0, bounces: 0, powerShots: 0, knockouts: 0 },
   brain: { thinkTimer: 0, targetX: spawn.x, targetY: spawn.y, wantDash: false, aimNoise: 0 },
 });
 
@@ -89,7 +91,11 @@ export const tickPlayerTimers = (player: PlayerState, dt: number): void => {
   player.slowImmunity = Math.max(0, player.slowImmunity - dt);
 };
 
-export const steerPlayer = (player: PlayerState, move: Vec2, dt: number, speedFactor: number): void => {
+/** False for players knocked out of the match or sitting out a red-ball burn. */
+export const isOnField = (player: PlayerState): boolean => !player.eliminated && player.outTime <= 0;
+
+/** Traction below 1 makes players slide (the ice floor event). */
+export const steerPlayer = (player: PlayerState, move: Vec2, dt: number, speedFactor: number, traction = 1): void => {
   if (Math.hypot(move.x, move.y) > DASH_INPUT_THRESHOLD) {
     const len = Math.hypot(move.x, move.y);
     player.faceX = move.x / len;
@@ -102,7 +108,7 @@ export const steerPlayer = (player: PlayerState, move: Vec2, dt: number, speedFa
   }
   const slow = player.slowTime > 0 ? SLOW_MULTIPLIER : 1;
   const maxSpeed = PLAYER_MAX_SPEED * speedFactor * slow;
-  const k = Math.min(1, PLAYER_ACCEL_RESPONSE * dt);
+  const k = Math.min(1, PLAYER_ACCEL_RESPONSE * traction * dt);
   player.vx += (move.x * maxSpeed - player.vx) * k;
   player.vy += (move.y * maxSpeed - player.vy) * k;
 };

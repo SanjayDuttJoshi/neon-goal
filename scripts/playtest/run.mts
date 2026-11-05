@@ -17,7 +17,7 @@ const SCENARIOS = process.argv.slice(3);
 const STEP_MS = 45;
 const FRAME_EVERY_MS = 2000;
 const BURST_EVERY_MS = 120;
-const MATCH_TIMEOUT_MS = 6 * 60_000;
+const MATCH_TIMEOUT_MS = 14 * 60_000;
 
 const MODE_LABELS: Record<string, string> = { solo: "Solo 1v1", duo: "Duo 2v2", squad: "Squad 4v4", ffa: "Chaar Kone" };
 
@@ -30,7 +30,13 @@ interface Report {
   errors: string[];
   perf: Pick<Probe, "frames" | "slowFrames" | "maxFrameMs"> | null;
   notes: string[];
+  /** Seconds into the recorded video where something worth watching happened. */
+  moments: Array<{ t: number; what: string }>;
 }
+
+const newReport = (scenario: string): Report => ({
+  scenario, goalsSeen: 0, dashes: 0, durationSec: 0, summary: "", errors: [], perf: null, notes: [], moments: [],
+});
 
 const watchErrors = (page: Page, sink: string[], tag: string) => {
   page.on("pageerror", (e) => sink.push(`[${tag}] pageerror: ${e.message}`));
@@ -51,7 +57,7 @@ const startPractice = async (page: Page, mode: string) => {
   await page.getByRole("button", { name: "Practice" }).click();
   await page.getByRole("button", { name: new RegExp(MODE_LABELS[mode]) }).click();
   await page.getByRole("radio", { name: "Khatarnak" }).click();
-  await page.getByRole("radio", { name: "2 min" }).click();
+  await page.getByRole("radio", { name: "6 min" }).click();
   await page.getByRole("button", { name: "Bots se khelo" }).click();
 };
 
@@ -62,11 +68,15 @@ interface Pilot {
 }
 
 /** Plays until the summary overlay shows; grabs frames on a timer and in bursts while a goal is celebrated. */
-const playMatch = async (page: Page, pilot: Pilot, framesDir: string, report: Report) => {
+const playMatch = async (page: Page, pilot: Pilot, framesDir: string, report: Report, videoStart: number) => {
   mkdirSync(framesDir, { recursive: true });
   const start = Date.now();
   let lastFrame = 0;
   let lastPhase = "";
+  let lastRed = 0;
+  let lastEvent = "";
+  let wasOut = false;
+  const mark = (what: string) => report.moments.push({ t: Math.round((Date.now() - videoStart) / 100) / 10, what });
   let shot = 0;
   const grab = async (label: string) => {
     shot += 1;
@@ -76,7 +86,16 @@ const playMatch = async (page: Page, pilot: Pilot, framesDir: string, report: Re
     const probe = await readProbe(page);
     await pilot.step(probe);
     const phase = probe?.phase ?? "none";
-    if (phase === "goal" && lastPhase !== "goal") report.goalsSeen += 1;
+    if (phase === "goal" && lastPhase !== "goal") {
+      report.goalsSeen += 1;
+      mark("goal");
+    }
+    if (probe && probe.ballRed > 0 && lastRed === 0) mark("red-ball");
+    if (probe && probe.arenaEvent && probe.arenaEvent !== lastEvent) mark(`event ${probe.arenaEvent}`);
+    if (probe?.selfOut && !wasOut) mark("self knocked out");
+    lastRed = probe?.ballRed ?? 0;
+    lastEvent = probe?.arenaEvent ?? "";
+    wasOut = probe?.selfOut ?? false;
     const now = Date.now();
     if (phase === "goal" ? now - lastFrame > BURST_EVERY_MS : now - lastFrame > FRAME_EVERY_MS) {
       lastFrame = now;
@@ -98,17 +117,22 @@ const playMatch = async (page: Page, pilot: Pilot, framesDir: string, report: Re
 
 const runPractice = async (browser: Browser, scenario: string, mobile: boolean): Promise<Report> => {
   const dir = join(OUT, scenario);
-  const report: Report = { scenario, goalsSeen: 0, dashes: 0, durationSec: 0, summary: "", errors: [], perf: null, notes: [] };
+  const report = newReport(scenario);
   const context = await newContext(browser, dir, mobile);
+  const videoStart = Date.now();
   const page = await context.newPage();
   watchErrors(page, report.errors, scenario);
   await startPractice(page, mobile ? "duo" : scenario);
   const pilot = mobile ? await TouchPilot.create(page) : new Autopilot(page);
-  await playMatch(page, pilot, join(dir, "frames"), report);
-  await page.getByRole("button", { name: /Phir se khelo/ }).click();
-  await page.waitForTimeout(1500);
-  report.notes.push(`rematch countdown visible: ${await page.getByText("Get ready").isVisible()}`);
-  await page.screenshot({ path: join(dir, "rematch.png") });
+  await playMatch(page, pilot, join(dir, "frames"), report, videoStart);
+  try {
+    await page.getByRole("button", { name: /Phir se khelo/ }).click({ timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    report.notes.push(`rematch countdown visible: ${await page.getByText("Get ready").isVisible()}`);
+    await page.screenshot({ path: join(dir, "rematch.png") });
+  } catch (error) {
+    report.notes.push(`no summary/rematch: ${String(error).slice(0, 120)}`);
+  }
   await context.close();
   return report;
 };
@@ -116,8 +140,9 @@ const runPractice = async (browser: Browser, scenario: string, mobile: boolean):
 /** Two humans over the same-browser network, both on autopilot, 1v1 with bots off. */
 const runLan = async (browser: Browser): Promise<Report> => {
   const dir = join(OUT, "lan");
-  const report: Report = { scenario: "lan", goalsSeen: 0, dashes: 0, durationSec: 0, summary: "", errors: [], perf: null, notes: [] };
+  const report = newReport("lan");
   const context = await newContext(browser, dir, false);
+  const videoStart = Date.now();
   const host = await context.newPage();
   const guest = await context.newPage();
   watchErrors(host, report.errors, "host");
@@ -133,7 +158,7 @@ const runLan = async (browser: Browser): Promise<Report> => {
   await host.getByText("Shyam", { exact: true }).waitFor();
   await host.getByRole("button", { name: /Solo 1v1/ }).click();
   await host.getByRole("radio", { name: "Bots OFF" }).click();
-  await host.getByRole("radio", { name: "2 min" }).click();
+  await host.getByRole("radio", { name: "6 min" }).click();
   await host.screenshot({ path: join(dir, "lobby-host.png") });
   await guest.screenshot({ path: join(dir, "lobby-guest.png") });
   await host.getByRole("button", { name: /Match Start/ }).click();
@@ -146,7 +171,7 @@ const runLan = async (browser: Browser): Promise<Report> => {
     }
     await guestPilot.release();
   })();
-  await playMatch(host, new Autopilot(host), join(dir, "frames"), report);
+  await playMatch(host, new Autopilot(host), join(dir, "frames"), report, videoStart);
   stop = true;
   await guestLoop;
   await guest.screenshot({ path: join(dir, "summary-guest.png") });
@@ -166,7 +191,7 @@ const main = async () => {
       const report = scenario === "lan" ? await runLan(browser) : await runPractice(browser, scenario, scenario === "mobile");
       reports.push(report);
     } catch (error) {
-      reports.push({ scenario, goalsSeen: 0, dashes: 0, durationSec: 0, summary: "", errors: [`CRASH: ${String(error)}`], perf: null, notes: [] });
+      reports.push({ ...newReport(scenario), errors: [`CRASH: ${String(error)}`] });
     }
     console.log(`${scenario} done in ${Math.round((Date.now() - t0) / 1000)}s`);
   }

@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BotDifficulty, GameMode, MatchPhase } from "@/types/game";
+import { BotDifficulty, GameMode, MatchPhase, RedBallMode } from "@/types/game";
 import { LobbyStatus, SessionError, SessionStatus, TransportKind, type LobbySettings } from "@/types/net";
 import { MemoryHub } from "@/net/memory-hub";
 import { RoomSession } from "@/net/room-session";
 
 const SETTINGS: LobbySettings = {
   mode: GameMode.Duo,
-  durationSec: 120,
+  durationSec: 360,
   botFill: true,
   botDifficulty: BotDifficulty.Normal,
+  redBall: RedBallMode.Long,
+  arenaEvents: true,
 };
 
 const setup = (hub: MemoryHub, clientId: string) =>

@@ -1,6 +1,7 @@
 import { GameEventKind, GameMode, type GameEvent, type RosterEntry } from "@/types/game";
 import type { FeedItem } from "@/types/render";
 import { TEAM_NAMES } from "@/game/constants";
+import { arenaEventInfoAt } from "@/lib/arena-event-info";
 
 const MAX_FEED = 5;
 
@@ -23,6 +24,22 @@ export const describeEvent = (event: GameEvent, roster: RosterEntry[], mode: Gam
       return "GOLDEN GOAL! Agla goal jeetega 🏆";
     case GameEventKind.PowerBounce:
       return event.value > 1100 ? `${nameOf(roster, event.playerId)} ka POWER SHOT 💥` : null;
+    case GameEventKind.BallRed:
+      return "🔥 Ball LAAL ho gayi! Body se mat chhuna";
+    case GameEventKind.BallCooled:
+      return "❄️ Ball thandi ho gayi";
+    case GameEventKind.KnockOut:
+      return `🔥 ${nameOf(roster, event.playerId)} jal gaya! ${event.value} sec out`;
+    case GameEventKind.GoalBonus:
+      return event.value >= 3 ? `💥 TRIPLE GOAL! +${event.value}` : `🔥 DOUBLE GOAL! +${event.value}`;
+    case GameEventKind.ArenaWarn: {
+      const info = arenaEventInfoAt(event.value);
+      return info ? `⚠ ${info.title} aa raha hai!` : null;
+    }
+    case GameEventKind.ArenaStart: {
+      const info = arenaEventInfoAt(event.value);
+      return info ? `${info.icon} ${info.title} shuru!` : null;
+    }
     default:
       return null;
   }

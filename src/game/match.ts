@@ -1,4 +1,5 @@
 import {
+  ArenaEventKind,
   GameEventKind,
   GameMode,
   MatchPhase,
@@ -7,14 +8,29 @@ import {
   type RosterEntry,
   type SimState,
   type TouchInfo,
+  type Vec2,
 } from "@/types/game";
 import { buildArena } from "@/game/arena";
-import { COUNTDOWN_SECONDS, DEFLECTION_CREDIT_SECONDS, FFA_START_LIVES, GOAL_CELEBRATION_SECONDS, MODE_INFO } from "@/game/constants";
+import {
+  COUNTDOWN_SECONDS,
+  DEFLECTION_CREDIT_SECONDS,
+  FFA_START_LIVES,
+  GOAL_CELEBRATION_SECONDS,
+  MODE_INFO,
+  RED_KICKOFF_COOLDOWN_SECONDS,
+} from "@/game/constants";
 import { pushEvent } from "@/game/events";
+import { createArenaEventState, isArenaEventActive } from "@/game/arena-events";
 import { createPlayer } from "@/game/players";
+import { isRed, resetBallHeat } from "@/game/red-ball";
 
 const slotOf = (players: PlayerState[], player: PlayerState): number =>
   players.filter((p) => p.team === player.team).indexOf(player);
+
+export const spawnPointOf = (state: SimState, player: PlayerState): Vec2 => {
+  const spawns = state.arena.spawns[player.team] ?? state.arena.spawns[0];
+  return spawns[slotOf(state.players, player) % spawns.length];
+};
 
 export const resetPositions = (state: SimState): void => {
   const { arena } = state;
@@ -24,9 +40,10 @@ export const resetPositions = (state: SimState): void => {
   state.ball.vy = 0;
   state.ball.lastTouch = null;
   state.ball.prevTouch = null;
+  resetBallHeat(state.ball);
+  state.ball.coolTime = RED_KICKOFF_COOLDOWN_SECONDS;
   for (const player of state.players) {
-    const spawns = arena.spawns[player.team] ?? arena.spawns[0];
-    const spawn = spawns[slotOf(state.players, player) % spawns.length];
+    const spawn = spawnPointOf(state, player);
     player.x = spawn.x;
     player.y = spawn.y;
     player.vx = 0;
@@ -35,6 +52,8 @@ export const resetPositions = (state: SimState): void => {
     player.dashCooldown = 0;
     player.slowTime = 0;
     player.slowImmunity = 0;
+    player.outTime = 0;
+    player.shieldTime = 0;
     player.trail = [];
     player.brain.thinkTimer = 0;
   }
@@ -66,12 +85,13 @@ export const createMatch = (config: MatchConfig, roster: RosterEntry[], seed: nu
     lives: Array.from({ length: arena.teamCount }, () => (isFfa ? FFA_START_LIVES : 0)),
     closedGoals: [],
     players,
-    ball: { x: arena.width / 2, y: arena.height / 2, vx: 0, vy: 0, lastTouch: null, prevTouch: null },
+    ball: { x: arena.width / 2, y: arena.height / 2, vx: 0, vy: 0, lastTouch: null, prevTouch: null, heat: 0, redLeft: 0, redTime: 0, coolTime: 0 },
     events: [],
     nextEventId: 1,
     winner: null,
     rngState: seed | 0,
     endAfterCelebration: false,
+    arenaEvent: createArenaEventState(),
   };
   if (isFfa) {
     for (let team = 0; team < arena.teamCount; team += 1) {
@@ -126,18 +146,23 @@ const creditedTouch = (state: SimState, concedingTeam: number): TouchInfo | null
   return deflected ? prevTouch : lastTouch;
 };
 
+/** A red-ball goal and a golden-time goal are each worth one extra point. */
+const goalPoints = (state: SimState): number =>
+  1 + (isRed(state.ball) ? 1 : 0) + (isArenaEventActive(state, ArenaEventKind.GoldenTime) ? 1 : 0);
+
 export const scoreGoal = (state: SimState, concedingTeam: number): void => {
   const { ball } = state;
   const isFfa = state.config.mode === GameMode.FreeForAll;
+  const points = goalPoints(state);
   const touch = creditedTouch(state, concedingTeam);
   const scorer = touch ? state.players.find((p) => p.id === touch.playerId) : undefined;
   const isOwnGoal = !touch || touch.team === concedingTeam;
   let creditTeam = isFfa ? (isOwnGoal ? -1 : touch.team) : 1 - concedingTeam;
   if (scorer && isOwnGoal) scorer.stats.ownGoals += 1;
   if (scorer && !isOwnGoal) scorer.stats.goals += 1;
-  if (creditTeam >= 0) state.scores[creditTeam] += 1;
+  if (creditTeam >= 0) state.scores[creditTeam] += points;
   if (isFfa) {
-    state.lives[concedingTeam] = Math.max(0, state.lives[concedingTeam] - 1);
+    state.lives[concedingTeam] = Math.max(0, state.lives[concedingTeam] - points);
   }
   pushEvent(state, {
     kind: GameEventKind.Goal,
@@ -148,6 +173,7 @@ export const scoreGoal = (state: SimState, concedingTeam: number): void => {
     otherId: isOwnGoal ? "own" : "",
     value: concedingTeam,
   });
+  if (points > 1) pushEvent(state, { kind: GameEventKind.GoalBonus, x: ball.x, y: ball.y, team: creditTeam, value: points });
   state.phase = MatchPhase.GoalScored;
   state.phaseTimer = GOAL_CELEBRATION_SECONDS;
   if (isFfa && state.lives[concedingTeam] === 0) eliminateTeam(state, concedingTeam);
